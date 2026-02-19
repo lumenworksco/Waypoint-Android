@@ -75,6 +75,7 @@ fun WaypointDetailSheet(
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
         containerColor = Color.White,
+        scrimColor = Color.Black.copy(alpha = 0.4f),
         dragHandle = null,
         tonalElevation = 0.dp,
     ) {

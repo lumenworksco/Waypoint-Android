@@ -2,11 +2,9 @@ package com.example.waypoint.ui.components
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.drawable.BitmapDrawable
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -15,9 +13,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.DrawableCompat
+import com.example.waypoint.R
 import com.example.waypoint.data.model.WaypointModel
 import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapEventsReceiver
@@ -29,6 +27,9 @@ import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 
 @Composable
 fun OsmMapView(
@@ -90,8 +91,8 @@ fun OsmMapView(
         if (isRecenterRequested) {
             val loc = myLocationOverlay.myLocation
             if (loc != null) {
-                // Zoom level 17 ≈ street-level (matches iOS 0.01 delta ≈ ~1km range → zoom ~16-17)
-                mapView.controller.animateTo(loc, 17.0, 800L)
+                // Zoom 18.5 ≈ neighbourhood block level (street detail visible)
+                mapView.controller.animateTo(loc, 18.5, 800L)
             }
             onRecenterHandled()
         }
@@ -157,91 +158,27 @@ private fun syncWaypointMarkers(
 }
 
 /**
- * Clean iOS-style balloon pin:
- *  - Pure filled teardrop — no inner ring, no glyph, just a solid smooth shape
- *  - Matches the minimalist look of MKMarkerAnnotationView in red
- *  - Subtle drop-shadow for depth
- *  - Default: iOS system red, Selected: iOS system orange
+ * Renders the vector drawable ic_map_pin into a BitmapDrawable at a crisp
+ * size for the current screen density.  Selected pins are tinted orange
+ * (iOS #FF6B2B); default pins keep the drawable's native iOS red (#FF3B30).
  */
 private fun createPinDrawable(context: Context, selected: Boolean): BitmapDrawable {
     val dp = context.resources.displayMetrics.density
+    // 28 × 42 dp — taller than wide to give the teardrop room to breathe
+    val w = (28 * dp).toInt()
+    val h = (42 * dp).toInt()
 
-    // Dimensions
-    val ballR   = 11f * dp   // radius of the ball head
-    val tipH    = 14f * dp   // height of the pointed tail below the ball
-    val pad     = 4f  * dp   // padding around edges for shadow bleed
+    val drawable = ContextCompat.getDrawable(context, R.drawable.ic_map_pin)!!.mutate()
 
-    val w = ((ballR + pad) * 2).toInt()
-    val h = ((ballR * 2) + tipH + pad * 2).toInt()
-    val cx = w / 2f
-    val ballCy = pad + ballR  // centre of ball
+    // Tint to orange when selected, keep native red otherwise
+    if (selected) {
+        DrawableCompat.setTint(drawable, Color.rgb(255, 107, 43))
+    }
 
+    drawable.setBounds(0, 0, w, h)
     val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bitmap)
-
-    // ── Shadow ──────────────────────────────────────────────────────────────
-    val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.argb(60, 0, 0, 0)
-        maskFilter = BlurMaskFilter(3.5f * dp, BlurMaskFilter.Blur.NORMAL)
-        style = Paint.Style.FILL
-    }
-    // Draw the full teardrop shape slightly offset as shadow
-    val shadowPath = buildTearPath(cx + 1f * dp, ballCy + 2f * dp, ballR, tipH)
-    canvas.drawPath(shadowPath, shadowPaint)
-
-    // ── Pin fill ─────────────────────────────────────────────────────────────
-    // iOS red:    #FF3B30  (selected gets a touch more orange: #FF6B2B)
-    val pinColor = if (selected) Color.rgb(255, 107, 43) else Color.rgb(255, 59, 48)
-    val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = pinColor
-        style = Paint.Style.FILL
-    }
-    val pinPath = buildTearPath(cx, ballCy, ballR, tipH)
-    canvas.drawPath(pinPath, fillPaint)
-
-    // ── Subtle top highlight (semi-transparent white arc at top of ball) ──────
-    val highlightPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.argb(60, 255, 255, 255)
-        style = Paint.Style.FILL
-    }
-    // Small filled arc in the upper-left quadrant of the ball
-    val highlightPath = Path().apply {
-        addCircle(cx - ballR * 0.18f, ballCy - ballR * 0.2f, ballR * 0.42f, Path.Direction.CW)
-    }
-    // Clip to just the ball area before drawing highlight
-    canvas.save()
-    val clipPath = Path().apply { addCircle(cx, ballCy, ballR, Path.Direction.CW) }
-    canvas.clipPath(clipPath)
-    canvas.drawPath(highlightPath, highlightPaint)
-    canvas.restore()
-
+    drawable.draw(Canvas(bitmap))
     return BitmapDrawable(context.resources, bitmap)
-}
-
-/** Builds a smooth teardrop path: ball on top, sharp tip pointing down */
-private fun buildTearPath(cx: Float, ballCy: Float, ballR: Float, tipH: Float): Path {
-    return Path().apply {
-        // Start at right side of ball
-        moveTo(cx + ballR, ballCy)
-        // Top arc of ball (right → top → left)
-        arcTo(
-            cx - ballR, ballCy - ballR,
-            cx + ballR, ballCy + ballR,
-            0f, -180f, false
-        )
-        // Bottom-left of ball curves into tail
-        // Left side goes down and inward to tip
-        quadTo(
-            cx - ballR, ballCy + ballR * 0.85f,   // control point
-            cx, ballCy + ballR + tipH              // tip point
-        )
-        // Right side mirrors
-        quadTo(
-            cx + ballR, ballCy + ballR * 0.85f,
-            cx + ballR, ballCy
-        )
-        close()
-    }
 }
 
 /**
