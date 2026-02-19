@@ -1,15 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Launcher foreground: white teardrop map pin on transparent background.
+    Viewport 108×108. Adaptive-icon safe zone: x 18–90, y 18–90.
+
+    Pin geometry:
+      Ball centre: (54, 46), radius 24
+      Tangent breakaway at y=46+24=70 → x = 54 ± 24·sin(60°) = 54 ± 20.78
+        Left:  (33.22, 70)
+        Right: (74.78, 70)
+      Tip: (54, 90)
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Map pin outer shape -->
+
+    <!-- White teardrop pin body -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M54,20 C42,20 32,30 32,42 C32,58 54,88 54,88 C54,88 76,58 76,42 C76,30 66,20 54,20 Z" />
-    <!-- Inner circle drawn as a path (two arcs = full circle) -->
+        android:pathData="M 74.78,70 A 24,24 0 1 0 33.22,70 Q 30,82 54,90 Q 78,82 74.78,70 Z" />
+
+    <!-- Glint: small semi-transparent circle in upper-left of ball -->
     <path
-        android:fillColor="#1565C0"
-        android:pathData="M54,32 A10,10 0 1 0 54,52 A10,10 0 1 0 54,32 Z" />
+        android:fillColor="#33007AFF"
+        android:pathData="M 43,34 C 38,34 35,38 35,42 C 35,46 38,50 43,50 C 48,50 51,46 51,42 C 51,38 48,34 43,34 Z" />
+
 </vector>
