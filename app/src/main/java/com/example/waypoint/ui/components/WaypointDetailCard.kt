@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -66,7 +67,7 @@ fun WaypointDetailCard(
 
     Box(
         modifier = modifier
-            .widthIn(max = 280.dp)
+            .widthIn(min = 240.dp, max = 280.dp)
             .shadow(
                 elevation = 8.dp,
                 shape = RoundedCornerShape(16.dp),
@@ -97,7 +98,7 @@ fun WaypointDetailCard(
                             capitalization = KeyboardCapitalization.Words,
                             imeAction = ImeAction.Next,
                         ),
-                        modifier = Modifier.widthIn(min = 180.dp),
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     OutlinedTextField(
                         value = editNotes,
@@ -120,11 +121,11 @@ fun WaypointDetailCard(
                         keyboardActions = KeyboardActions(
                             onDone = { if (isSaveEnabled) { isEditing = false; onSave(editName, editNotes) } }
                         ),
-                        modifier = Modifier.widthIn(min = 180.dp),
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     Row(
                         horizontalArrangement = Arrangement.End,
-                        modifier = Modifier.widthIn(min = 180.dp),
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         TextButton(onClick = { isEditing = false }) {
                             Text("Cancel", color = Color(0xFF8E8E93), fontSize = 14.sp)
