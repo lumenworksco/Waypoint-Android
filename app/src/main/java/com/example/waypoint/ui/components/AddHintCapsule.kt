@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.PanTool
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -19,20 +19,23 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
+/**
+ * "Long-press to add" hint capsule — matches iOS black semi-transparent pill style.
+ */
 @Composable
 fun AddHintCapsule(modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(50))
-            .background(Color.Black.copy(alpha = 0.6f))
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .background(Color.Black.copy(alpha = 0.65f))
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = Icons.Filled.TouchApp,
+            imageVector = Icons.Filled.PanTool,
             contentDescription = null,
             tint = Color.White,
-            modifier = Modifier.size(16.dp)
+            modifier = Modifier.size(14.dp)
         )
         Spacer(modifier = Modifier.width(6.dp))
         Text(
