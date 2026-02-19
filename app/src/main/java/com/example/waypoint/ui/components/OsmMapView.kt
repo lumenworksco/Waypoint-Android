@@ -20,7 +20,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.waypoint.data.model.WaypointModel
-import org.osmdroid.config.Configuration
 import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -45,12 +44,6 @@ fun OsmMapView(
     val lifecycleOwner = LocalLifecycleOwner.current
 
     val mapView = remember {
-        Configuration.getInstance().load(
-            context,
-            context.getSharedPreferences("osmdroid", Context.MODE_PRIVATE)
-        )
-        Configuration.getInstance().userAgentValue = context.packageName
-
         MapView(context).apply {
             setTileSource(TileSourceFactory.MAPNIK)
             setMultiTouchControls(true)
@@ -178,10 +171,8 @@ private fun createPinWithLabel(
 
     // ── Pin dimensions ────────────────────────────────────────────────────────
     // The pin shape: width W, total height H = W * 1.35 (matches logo proportions)
-    val pinW  = (32f * d)
-    val pinH  = (pinW * 1.35f)
-    val pinWi = pinW.toInt()
-    val pinHi = pinH.toInt()
+    val pinW = (32f * d)
+    val pinH = (pinW * 1.35f)
 
     // Pin colour: charcoal (default) or orange-red (selected)
     val pinColor = if (selected) Color.rgb(220, 80, 40) else Color.rgb(60, 55, 52)
