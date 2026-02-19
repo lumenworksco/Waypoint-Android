@@ -2,16 +2,13 @@ package com.example.waypoint.ui.components
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.PorterDuff
-import android.graphics.PorterDuffColorFilter
+import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.drawable.BitmapDrawable
-import com.example.waypoint.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -161,16 +158,15 @@ private fun syncWaypointMarkers(
 }
 
 /**
- * Loads ic_map_pin.png (extracted from logo.png) and composites it with a
- * label pill above. The pin bitmap is tinted for the selected state.
- * This is pixel-perfect since it uses the actual logo artwork.
+ * Draws a map pin that matches the logo.png design:
+ * dark charcoal teardrop with a white circle hole, using EVEN_ODD fill.
  *
  * Bitmap layout (ANCHOR_CENTER / ANCHOR_BOTTOM → tip sits on geo-coord):
  *
  *   ┌──────────────┐   ← white pill with waypoint name
  *   │  Waypoint 1  │
  *   └──────────────┘
- *        [pin]         ← ic_map_pin.png scaled to pinH dp tall
+ *        [ ◉ ]         ← canvas-drawn pin (teardrop + hole)
  *          ▼  tip      ← this pixel is the anchor
  */
 private fun createPinWithLabel(
@@ -180,33 +176,22 @@ private fun createPinWithLabel(
 ): BitmapDrawable {
     val d = context.resources.displayMetrics.density
 
-    // ── Load the pin source bitmap ────────────────────────────────────────────
-    // ic_map_pin.png is the pin extracted from logo.png (transparent background,
-    // dark charcoal shape). We scale it to pinH px tall.
-    val pinH    = (44f * d).toInt()   // pin height in px
-    val rawPin  = BitmapFactory.decodeResource(
-        context.resources, R.drawable.ic_map_pin
-    )
-    // Scale proportionally: source is square (pin is taller than wide, padded)
-    val pinW    = pinH   // source is square, pin fills ~most of it
-    val pinBmp  = Bitmap.createScaledBitmap(rawPin, pinW, pinH, true)
+    // ── Pin dimensions ────────────────────────────────────────────────────────
+    // The pin shape: width W, total height H = W * 1.35 (matches logo proportions)
+    val pinW  = (32f * d)
+    val pinH  = (pinW * 1.35f)
+    val pinWi = pinW.toInt()
+    val pinHi = pinH.toInt()
 
-    // Tint for selected state: use a ColorFilter on the paint
-    val pinPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        if (selected) {
-            colorFilter = PorterDuffColorFilter(
-                Color.rgb(220, 80, 40),
-                PorterDuff.Mode.SRC_IN
-            )
-        }
-    }
+    // Pin colour: charcoal (default) or orange-red (selected)
+    val pinColor = if (selected) Color.rgb(220, 80, 40) else Color.rgb(60, 55, 52)
 
     // ── Label pill ────────────────────────────────────────────────────────────
     val textSizePx = 11f * d
     val pillPH     =  5f * d
     val pillPV     =  3f * d
     val pillCorner =  6f * d
-    val pillGap    =  2f * d
+    val pillGap    =  3f * d
 
     val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textSize = textSizePx
@@ -218,23 +203,23 @@ private fun createPinWithLabel(
     val pillW = textW + pillPH * 2f
     val pillH = (fm.descent - fm.ascent) + pillPV * 2f
 
-    // ── Bitmap ────────────────────────────────────────────────────────────────
-    val bitmapW = maxOf(pillW, pinW.toFloat()).toInt()
+    // ── Composite bitmap ──────────────────────────────────────────────────────
+    val bitmapW = maxOf(pillW, pinW).toInt()
     val bitmapH = (pillH + pillGap + pinH).toInt()
     val cx      = bitmapW / 2f
 
     val bitmap = Bitmap.createBitmap(bitmapW, bitmapH, Bitmap.Config.ARGB_8888)
     val canvas  = Canvas(bitmap)
 
-    // ── Pill ─────────────────────────────────────────────────────────────────
+    // ── Pill ──────────────────────────────────────────────────────────────────
     val pillLeft = cx - pillW / 2f
-    // shadow
+    // subtle drop shadow
     canvas.drawRoundRect(
         RectF(pillLeft, d * 0.8f, pillLeft + pillW, pillH + d * 0.8f),
         pillCorner, pillCorner,
         Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(28, 0, 0, 0) }
     )
-    // body
+    // white body
     canvas.drawRoundRect(
         RectF(pillLeft, 0f, pillLeft + pillW, pillH),
         pillCorner, pillCorner,
@@ -242,10 +227,62 @@ private fun createPinWithLabel(
     )
     canvas.drawText(name, cx - textW / 2f, pillPV - fm.ascent, textPaint)
 
-    // ── Pin ───────────────────────────────────────────────────────────────────
-    val pinLeft = (bitmapW - pinW) / 2f
-    val pinTop  = pillH + pillGap
-    canvas.drawBitmap(pinBmp, pinLeft, pinTop, pinPaint)
+    // ── Pin shape (teardrop + hole via EVEN_ODD) ──────────────────────────────
+    // Coordinate system: origin at top-left of pin area
+    val ox = cx              // horizontal centre
+    val oy = pillH + pillGap // top of pin area
+
+    // Radius of the round head of the pin (upper circle part)
+    val headR = pinW / 2f
+    // Centre of that circle: sits headR from the top
+    val headCy = oy + headR
+
+    // The pin tapers to a point at the bottom
+    val tipY = oy + pinH
+
+    // Build the outer teardrop path:
+    // Two cubic bezier curves that go from the tip up to the head circle,
+    // then arc around the top.
+    val path = Path().apply {
+        fillType = Path.FillType.EVEN_ODD
+
+        // Outer teardrop ──────────────────────────────────────────────────────
+        // Start at tip
+        moveTo(ox, tipY)
+
+        // Left side: tip → upper-left tangent of head circle
+        // The circle is centred at (ox, headCy) with radius headR.
+        // Left tangent point is approximately at (ox - headR, headCy + headR * 0.3)
+        cubicTo(
+            ox - headR * 0.15f, tipY - pinH * 0.08f,   // ctrl1
+            ox - headR,         headCy + headR * 0.5f,  // ctrl2
+            ox - headR,         headCy                   // end = left of circle
+        )
+        // Arc the top of the circle (left → right, sweeping through the top)
+        arcTo(
+            RectF(ox - headR, oy, ox + headR, oy + headR * 2f),
+            180f, 180f, false
+        )
+        // Right side: upper-right of head circle → tip
+        cubicTo(
+            ox + headR,         headCy + headR * 0.5f,  // ctrl1
+            ox + headR * 0.15f, tipY - pinH * 0.08f,   // ctrl2
+            ox,                 tipY                     // tip
+        )
+        close()
+
+        // Inner hole (punched via EVEN_ODD) ───────────────────────────────────
+        // Hole centre: upper third of the pin, radius ~30% of headR
+        val holeCx = ox
+        val holeCy = headCy - headR * 0.05f
+        val holeR  = headR * 0.38f
+        addCircle(holeCx, holeCy, holeR, Path.Direction.CW)
+    }
+
+    canvas.drawPath(path, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = pinColor
+        style = Paint.Style.FILL
+    })
 
     return BitmapDrawable(context.resources, bitmap)
 }
