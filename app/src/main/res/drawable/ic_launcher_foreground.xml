@@ -4,13 +4,11 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Map pin shape -->
+    <!-- Map pin outer shape -->
     <path
         android:fillColor="#FFFFFF"
         android:pathData="M54,20 C42,20 32,30 32,42 C32,58 54,88 54,88 C54,88 76,58 76,42 C76,30 66,20 54,20 Z" />
-    <circle
+    <!-- Inner circle drawn as a path (two arcs = full circle) -->
+    <path
         android:fillColor="#1565C0"
-        android:cx="54"
-        android:cy="42"
-        android:r="10" />
-</vector>
+        android:pathData="M54,32 A10,10 0 1 0 54,52 A10,10 0 1 0 54,32 Z" />
