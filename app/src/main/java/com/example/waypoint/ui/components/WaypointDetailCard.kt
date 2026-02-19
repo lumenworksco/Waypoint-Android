@@ -1,12 +1,6 @@
 package com.example.waypoint.ui.components
 
 import android.location.Location
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -70,25 +64,19 @@ fun WaypointDetailCard(
     var editNotes by remember(waypoint.id) { mutableStateOf(waypoint.notes) }
     val isSaveEnabled = editName.trim().isNotBlank()
 
-    AnimatedVisibility(
-        visible = true,
-        enter = slideInVertically(tween(220)) { it / 2 } + fadeIn(tween(220)),
-        exit  = slideOutVertically(tween(180)) { it / 2 } + fadeOut(tween(180)),
-        modifier = modifier,
+    Box(
+        modifier = modifier
+            .widthIn(max = 280.dp)
+            .shadow(
+                elevation = 8.dp,
+                shape = RoundedCornerShape(16.dp),
+                ambientColor = Color.Black.copy(alpha = 0.12f),
+                spotColor = Color.Black.copy(alpha = 0.18f),
+            )
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.White.copy(alpha = 0.97f))
+            .padding(12.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .widthIn(max = 280.dp)
-                .shadow(
-                    elevation = 8.dp,
-                    shape = RoundedCornerShape(16.dp),
-                    ambientColor = Color.Black.copy(alpha = 0.12f),
-                    spotColor = Color.Black.copy(alpha = 0.18f),
-                )
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color.White.copy(alpha = 0.97f))
-                .padding(12.dp)
-        ) {
             if (isEditing) {
                 // ── Edit mode ─────────────────────────────────────────────
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -226,7 +214,6 @@ fun WaypointDetailCard(
                 }
             }
         }
-    }
 }
 
 @Composable

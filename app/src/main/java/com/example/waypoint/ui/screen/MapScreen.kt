@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -96,7 +97,9 @@ fun MapScreen(viewModel: WaypointViewModel) {
                 .padding(horizontal = 16.dp, vertical = 16.dp)
         ) {
             // Left slot: detail card OR hint capsule
-            Box(modifier = Modifier.weight(1f)) {
+            // Use Column (not Box) so AnimatedVisibility resolves to the
+            // ColumnScope overload instead of the ambiguous RowScope one.
+            Column(modifier = Modifier.weight(1f)) {
                 // Hint capsule (shown until first waypoint is added)
                 AnimatedVisibility(
                     visible = uiState.showHint && uiState.selectedWaypoint == null,
@@ -107,23 +110,24 @@ fun MapScreen(viewModel: WaypointViewModel) {
                 }
 
                 // Waypoint detail card (shown when a waypoint is selected)
-                uiState.selectedWaypoint?.let { wp ->
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = slideInVertically(tween(220)) { it / 2 } + fadeIn(tween(220)),
-                        exit  = slideOutVertically(tween(180)) { it / 2 } + fadeOut(tween(180)),
-                    ) {
+                val selectedWp = uiState.selectedWaypoint
+                AnimatedVisibility(
+                    visible = selectedWp != null,
+                    enter = slideInVertically(tween(220)) { it / 2 } + fadeIn(tween(220)),
+                    exit  = slideOutVertically(tween(180)) { it / 2 } + fadeOut(tween(180)),
+                ) {
+                    if (selectedWp != null) {
                         WaypointDetailCard(
-                            waypoint = wp,
+                            waypoint = selectedWp,
                             userLocation = uiState.userLocation,
                             onDismiss = { viewModel.selectWaypoint(null) },
                             onDelete = {
                                 haptic.warning()
-                                viewModel.deleteWaypoint(wp.id)
+                                viewModel.deleteWaypoint(selectedWp.id)
                             },
                             onSave = { name, notes ->
                                 haptic.success()
-                                viewModel.saveEdit(wp.id, name, notes)
+                                viewModel.saveEdit(selectedWp.id, name, notes)
                             },
                         )
                     }
