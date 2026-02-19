@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.outlined.LocationOff
+import androidx.compose.material.icons.filled.LocationOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -59,7 +59,7 @@ fun MapHeader(
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Icon(
-                imageVector = if (locationEnabled) Icons.Filled.LocationOn else Icons.Outlined.LocationOff,
+                imageVector = if (locationEnabled) Icons.Filled.LocationOn else Icons.Filled.LocationOff,
                 contentDescription = null,
                 tint = if (locationEnabled) Color(0xFF4CAF50) else Color(0xFF9E9E9E),
                 modifier = Modifier.size(14.dp)

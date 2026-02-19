@@ -45,6 +45,9 @@ play-services-location = { group = "com.google.android.gms", name = "play-servic
 # Accompanist Permissions
 accompanist-permissions = { group = "com.google.accompanist", name = "accompanist-permissions", version.ref = "accompanistPermissions" }
 
+# Extended Material Icons (includes TouchApp, LocationOff, MyLocation, etc.)
+androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
+
 # Core
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version = "1.13.1" }
 
