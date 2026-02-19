@@ -1,7 +1,14 @@
 package com.example.waypoint.ui.screen
 
 import android.Manifest
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -19,7 +26,7 @@ import com.example.waypoint.ui.components.AddHintCapsule
 import com.example.waypoint.ui.components.MapHeader
 import com.example.waypoint.ui.components.OsmMapView
 import com.example.waypoint.ui.components.RecenterButton
-import com.example.waypoint.ui.components.WaypointDetailSheet
+import com.example.waypoint.ui.components.WaypointDetailCard
 import com.example.waypoint.util.HapticUtil
 import com.example.waypoint.viewmodel.WaypointViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -35,18 +42,16 @@ fun MapScreen(viewModel: WaypointViewModel) {
     val locationPermissionsState = rememberMultiplePermissionsState(
         permissions = listOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION
+            Manifest.permission.ACCESS_COARSE_LOCATION,
         )
     )
 
-    // Request permissions on first composition
     LaunchedEffect(Unit) {
         if (!locationPermissionsState.allPermissionsGranted) {
             locationPermissionsState.launchMultiplePermissionRequest()
         }
     }
 
-    // Start location updates once permissions are granted
     LaunchedEffect(locationPermissionsState.allPermissionsGranted) {
         if (locationPermissionsState.allPermissionsGranted) {
             viewModel.startLocationUpdates()
@@ -55,7 +60,7 @@ fun MapScreen(viewModel: WaypointViewModel) {
 
     Box(modifier = Modifier.fillMaxSize()) {
 
-        // Full-screen map
+        // ── Full-screen map ──────────────────────────────────────────────────
         OsmMapView(
             modifier = Modifier.fillMaxSize(),
             waypoints = uiState.waypoints,
@@ -72,7 +77,7 @@ fun MapScreen(viewModel: WaypointViewModel) {
             }
         )
 
-        // Header overlay (top)
+        // ── Header (top) ─────────────────────────────────────────────────────
         MapHeader(
             userLocation = uiState.userLocation,
             locationEnabled = uiState.locationEnabled,
@@ -81,48 +86,56 @@ fun MapScreen(viewModel: WaypointViewModel) {
                 .statusBarsPadding()
         )
 
-        // Hint capsule (bottom center, disappears after first waypoint added)
-        if (uiState.showHint) {
-            AddHintCapsule(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(bottom = 96.dp)
+        // ── Bottom row: card (left) + recenter (right) ───────────────────────
+        // Mirrors the iOS ContentView HStack layout exactly.
+        Row(
+            verticalAlignment = Alignment.Bottom,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .navigationBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 16.dp)
+        ) {
+            // Left slot: detail card OR hint capsule
+            Box(modifier = Modifier.weight(1f)) {
+                // Hint capsule (shown until first waypoint is added)
+                AnimatedVisibility(
+                    visible = uiState.showHint && uiState.selectedWaypoint == null,
+                    enter = slideInVertically(tween(220)) { it / 2 } + fadeIn(tween(220)),
+                    exit  = slideOutVertically(tween(180)) { it / 2 } + fadeOut(tween(180)),
+                ) {
+                    AddHintCapsule()
+                }
+
+                // Waypoint detail card (shown when a waypoint is selected)
+                uiState.selectedWaypoint?.let { wp ->
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = slideInVertically(tween(220)) { it / 2 } + fadeIn(tween(220)),
+                        exit  = slideOutVertically(tween(180)) { it / 2 } + fadeOut(tween(180)),
+                    ) {
+                        WaypointDetailCard(
+                            waypoint = wp,
+                            userLocation = uiState.userLocation,
+                            onDismiss = { viewModel.selectWaypoint(null) },
+                            onDelete = {
+                                haptic.warning()
+                                viewModel.deleteWaypoint(wp.id)
+                            },
+                            onSave = { name, notes ->
+                                haptic.success()
+                                viewModel.saveEdit(wp.id, name, notes)
+                            },
+                        )
+                    }
+                }
+            }
+
+            // Right slot: recenter button (always visible)
+            RecenterButton(
+                enabled = uiState.locationEnabled,
+                onClick = { viewModel.requestRecenter() },
+                modifier = Modifier.padding(start = 12.dp),
             )
         }
-
-        // Re-center button (bottom right)
-        RecenterButton(
-            enabled = uiState.locationEnabled,
-            onClick = { viewModel.requestRecenter() },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .navigationBarsPadding()
-                .padding(end = 16.dp, bottom = 16.dp)
-        )
-    }
-
-    // Bottom sheet shown when a waypoint is selected
-    uiState.selectedWaypoint?.let { wp ->
-        WaypointDetailSheet(
-            waypoint = wp,
-            userLocation = uiState.userLocation,
-            isEditing = uiState.isEditingWaypoint,
-            onDismiss = { viewModel.selectWaypoint(null) },
-            onEdit = {
-                viewModel.startEditing()
-            },
-            onCancelEdit = {
-                viewModel.cancelEditing()
-            },
-            onSave = { name, notes ->
-                haptic.success()
-                viewModel.saveEdit(wp.id, name, notes)
-            },
-            onDelete = {
-                haptic.warning()
-                viewModel.deleteWaypoint(wp.id)
-            }
-        )
     }
 }

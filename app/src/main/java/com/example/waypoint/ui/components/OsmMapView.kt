@@ -158,19 +158,13 @@ private fun syncWaypointMarkers(
 }
 
 /**
- * Draws a complete map annotation:
+ * Draws a complete map annotation matching the app icon style:
  *
  *   ┌──────────────┐   ← label pill (white, rounded)
  *   │  Waypoint 1  │
  *   └──────────────┘
- *       (  O  )        ← teardrop pin with hollow circle cutout
+ *      ( red pin )     ← teardrop with hollow circle (like Google Maps / app icon)
  *          ▼           ← tip = anchor point (geo-coordinate)
- *
- * Pin shape matches the reference image: a filled teardrop with a circular
- * hole punched through the ball head, drawn with Path.FillType.EVEN_ODD.
- *
- * The bitmap anchor is ANCHOR_CENTER / ANCHOR_BOTTOM so OSMDroid places
- * the very bottom pixel (the pin tip) exactly on the geo-coordinate.
  */
 private fun createPinWithLabel(
     context: Context,
@@ -179,125 +173,104 @@ private fun createPinWithLabel(
 ): BitmapDrawable {
     val d = context.resources.displayMetrics.density
 
-    val pinColor  = if (selected) Color.rgb(255, 107, 43) else Color.rgb(255, 59, 48)
+    // ── Pin colours (red body, green hole — matches app icon) ────────────────
+    val pinColor  = if (selected) Color.rgb(255, 107, 43) else Color.rgb(220, 57, 46)
+    val holeColor = if (selected) Color.rgb(255, 200, 100) else Color.rgb(130, 180, 100)
 
-    // ── Pin dimensions ───────────────────────────────────────────────────────
-    val outerR    = 12f * d     // outer ball radius
-    val holeR     = 5f  * d     // inner hole radius (≈40% of outerR, matching reference)
-    // The tail narrows from the ball tangent breakaway down to a sharp tip.
-    // We use bezier curves so the join to the ball is perfectly smooth.
-    val tailH     = 16f * d     // total tail height below ball centre
-    val shadowBleed = 4f * d    // extra space around pin for drop-shadow
+    // ── Pin geometry ─────────────────────────────────────────────────────────
+    val outerR  = 13f * d   // ball radius
+    val holeR   =  5f * d   // inner hole radius
+    val tailH   = 15f * d   // tail height (from bottom of ball to tip)
+    val pad     =  4f * d   // shadow bleed padding
 
-    // ── Label pill dimensions ────────────────────────────────────────────────
-    val textSize  = 11f * d
-    val padH      = 5f * d
-    val padV      = 3f * d
-    val pillR     = 6f * d
-    val connGap   = 3f * d      // vertical gap between pill bottom and pin top
+    // ── Label pill ────────────────────────────────────────────────────────────
+    val textSize = 11f * d
+    val padH     =  5f * d
+    val padV     =  3f * d
+    val pillR    =  6f * d
+    val gap      =  3f * d  // between pill bottom and ball top
 
     val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         this.textSize = textSize
-        typeface      = Typeface.create("sans-serif-medium", Typeface.NORMAL)
-        color         = Color.rgb(28, 28, 30)
+        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        color = Color.rgb(28, 28, 30)
     }
     val textW = textPaint.measureText(name)
     val fm    = textPaint.fontMetrics
     val pillW = textW + padH * 2
     val pillH = (fm.descent - fm.ascent) + padV * 2
 
-    // ── Bitmap size ──────────────────────────────────────────────────────────
-    val pinW     = (outerR * 2 + shadowBleed * 2)
-    val bitmapW  = maxOf(pillW + shadowBleed * 2, pinW).toInt()
-    val bitmapH  = (pillH + connGap + outerR * 2 + tailH + shadowBleed).toInt()
+    // ── Bitmap dimensions ────────────────────────────────────────────────────
+    val contentW = maxOf(pillW, outerR * 2f)
+    val bitmapW  = (contentW + pad * 2).toInt()
+    val bitmapH  = (pillH + gap + outerR * 2f + tailH + pad).toInt()
     val cx       = bitmapW / 2f
 
     val bitmap = Bitmap.createBitmap(bitmapW, bitmapH, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
 
-    // ── Label pill ───────────────────────────────────────────────────────────
+    // ── Draw label pill ───────────────────────────────────────────────────────
     val pillLeft = cx - pillW / 2f
-    val pillTop  = 0f
     val pillBot  = pillH
-
-    // Pill drop-shadow
     canvas.drawRoundRect(
-        RectF(pillLeft, pillTop + d, cx + pillW / 2f, pillBot + d),
-        pillR, pillR,
-        Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.argb(35, 0, 0, 0)
-            setShadowLayer(3f * d, 0f, 1.5f * d, Color.argb(35, 0, 0, 0))
-        }
-    )
-    // Pill fill
-    canvas.drawRoundRect(
-        RectF(pillLeft, pillTop, cx + pillW / 2f, pillBot),
+        RectF(pillLeft, 0f, cx + pillW / 2f, pillBot),
         pillR, pillR,
         Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(240, 255, 255, 255) }
     )
-    // Pill text
-    canvas.drawText(name, cx - textW / 2f, pillTop + padV - fm.ascent, textPaint)
+    canvas.drawText(name, cx - textW / 2f, padV - fm.ascent, textPaint)
 
-    // ── Pin: teardrop with EVEN_ODD hole ─────────────────────────────────────
-    // Ball centre sits just below the pill
-    val ballCy = pillBot + connGap + outerR
-    // Tip at the very bottom of the bitmap (minus shadow bleed)
-    val tipY   = ballCy + outerR + tailH
+    // ── Draw pin ──────────────────────────────────────────────────────────────
+    val ballCy = pillBot + gap + outerR   // centre of the ball
+    val tipY   = ballCy + outerR + tailH  // sharp tip at very bottom
 
-    // The teardrop tail breaks away at ±60° from the bottom of the ball.
-    // In canvas angles (0° = east, CW):
-    //   bottom of ball = 90°  →  right break = 90°+60° = 150°  (below-right)
-    //                          →  left  break = 90°-60° =  30°  — NO, we go the other way:
-    // Right break-off: angle 150° from east  → x = cx + outerR·cos(150°), y = ballCy + outerR·sin(150°)
-    //   cos(150°) = -√3/2 ≈ -0.866,  sin(150°) = 0.5   → that's on the LEFT side.
-    // We want the break to be symmetric left/right, below centre.
-    // Simpler: measure the break angle φ from the bottom (6-o'clock):
-    //   φ = 55° either side.  In canvas angles from east: right = 90+55=145°, left = 90-55=35°.
-    //   Right point: cx + outerR·cos(145°), ballCy + outerR·sin(145°)
-    //               = cx - outerR·sin(55°), ballCy + outerR·cos(55°)
-    val phi       = Math.toRadians(55.0)
-    val bx = (outerR * Math.sin(phi)).toFloat()   // horizontal offset (sin because from vertical)
-    val by = (outerR * Math.cos(phi)).toFloat()   // downward offset from ball centre
+    // Build the pin path: full ball circle + tail quadratics, with EVEN_ODD hole
+    // The tail starts from the two bottom-quarter points on the circle:
+    //   left:  cx - outerR*sin(50°), ballCy + outerR*cos(50°)
+    //   right: cx + outerR*sin(50°), ballCy + outerR*cos(50°)
+    val sinA = Math.sin(Math.toRadians(50.0)).toFloat()
+    val cosA = Math.cos(Math.toRadians(50.0)).toFloat()
+    val tx   = outerR * sinA   // horizontal offset of tail break-off
+    val ty   = outerR * cosA   // downward offset of tail break-off from ball centre
 
-    // Arc: start at right break-off (canvas angle = 90+55 = 145°),
-    //      sweep CCW (negative) 360-110 = 250° to left break-off (canvas angle = 90-55 = 35°)
-    val arcStart  = 90f + 55f   // 145° — right break-off
-    val arcSweep  = -(360f - 110f)  // -250° CCW
-
-    // Outer teardrop + tail as a single path (EVEN_ODD fill rule)
-    val outerPath = Path().apply {
-        moveTo(cx + bx, ballCy + by)          // right break-off
-        arcTo(
-            cx - outerR, ballCy - outerR,
-            cx + outerR, ballCy + outerR,
-            arcStart, arcSweep, false
-        )                                       // sweeps CCW over the top to left break-off
-        // Left bezier down to tip
-        quadTo(cx - bx * 0.25f, tipY - tailH * 0.4f, cx, tipY)
-        // Right bezier back up to start
-        quadTo(cx + bx * 0.25f, tipY - tailH * 0.4f, cx + bx, ballCy + by)
+    val pinPath = Path().apply {
+        // Full ball circle (CCW)
+        addCircle(cx, ballCy, outerR, Path.Direction.CCW)
+        // Tail: triangle with slightly curved sides
+        moveTo(cx - tx, ballCy + ty)
+        quadTo(cx - tx * 0.3f, ballCy + ty + (tailH * 0.6f), cx, tipY)
+        quadTo(cx + tx * 0.3f, ballCy + ty + (tailH * 0.6f), cx + tx, ballCy + ty)
         close()
+        // Hole (CW = opposite winding → punches through with EVEN_ODD)
         fillType = Path.FillType.EVEN_ODD
     }
+    pinPath.addCircle(cx, ballCy, holeR, Path.Direction.CW)
 
-    // Inner hole circle (opposite winding = CW) at ball centre, slightly above centre
-    val holeCy = ballCy - outerR * 0.08f   // nudge hole slightly upward for visual balance
-    outerPath.addCircle(cx, holeCy, holeR, Path.Direction.CW)
-
-    // Drop shadow — draw a slightly offset solid version first
-    val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.argb(55, 0, 0, 0)
-        style = Paint.Style.FILL
-        setShadowLayer(3f * d, 0f, 2f * d, Color.argb(55, 0, 0, 0))
+    // Shadow (offset copy, no hole needed)
+    val shadowPath = Path().apply {
+        addCircle(cx, ballCy, outerR, Path.Direction.CCW)
+        moveTo(cx - tx, ballCy + ty)
+        quadTo(cx - tx * 0.3f, ballCy + ty + (tailH * 0.6f), cx, tipY)
+        quadTo(cx + tx * 0.3f, ballCy + ty + (tailH * 0.6f), cx + tx, ballCy + ty)
+        close()
     }
     canvas.save()
     canvas.translate(0f, 1.5f * d)
-    canvas.drawPath(outerPath, shadowPaint)
+    canvas.drawPath(shadowPath, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(45, 0, 0, 0)
+        style = Paint.Style.FILL
+        maskFilter = android.graphics.BlurMaskFilter(3f * d, android.graphics.BlurMaskFilter.Blur.NORMAL)
+    })
     canvas.restore()
 
-    // Pin fill
-    canvas.drawPath(outerPath, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    // Pin body
+    canvas.drawPath(pinPath, Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = pinColor
+        style = Paint.Style.FILL
+    })
+
+    // Hole fill (draws over the transparent hole to give it a colour)
+    canvas.drawCircle(cx, ballCy, holeR, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = holeColor
         style = Paint.Style.FILL
     })
 
