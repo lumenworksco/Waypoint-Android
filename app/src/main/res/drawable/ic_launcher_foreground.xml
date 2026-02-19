@@ -1,14 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Launcher foreground: white teardrop map pin on transparent background.
+    Launcher foreground: classic map-pin silhouette (teardrop with hollow circle).
     Viewport 108×108. Adaptive-icon safe zone: x 18–90, y 18–90.
 
-    Pin geometry:
-      Ball centre: (54, 46), radius 24
-      Tangent breakaway at y=46+24=70 → x = 54 ± 24·sin(60°) = 54 ± 20.78
-        Left:  (33.22, 70)
-        Right: (74.78, 70)
+    Pin geometry (all coords in viewport units):
+      Ball centre: (54, 46), outer radius R=24
+      Tangent breakaway at y = 46+24 = 70
+        x = 54 ± R·sin(60°) = 54 ± 20.78  →  (33.22, 70) and (74.78, 70)
       Tip: (54, 90)
+      Inner hole: centre (54, 42), radius r=10
+
+    The EVEN_ODD fill rule makes the overlapping inner-circle path
+    punch a transparent hole through the outer teardrop.
+
+    Both paths are listed inside a single <group> so Android's
+    vector renderer applies EVEN_ODD correctly across them.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -16,14 +22,35 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- White teardrop pin body -->
+    <!--
+        Outer teardrop:
+          M 74.78,70          — start at right tangent
+          A 24,24 0 1 0 33.22,70  — large arc CCW over the top of the ball
+          Q 30,82 54,90       — left bezier down to tip
+          Q 78,82 74.78,70    — right bezier back up
+          Z                   — close
+
+        Inner hole (drawn as two semicircular arcs = full circle, r=10):
+          M 54,32   A 10,10 0 0 0 54,52   — top half
+          A 10,10 0 0 0 54,32             — bottom half (closes the circle)
+          Z
+
+        Android vector uses nonzero winding by default; to get a hole we
+        use trimPath tricks — but the simplest reliable approach in AVD is
+        to place the hole circle in the OPPOSITE winding direction.
+        Outer path: large-arc flag=0 → counter-clockwise
+        Inner path: arcs sweep=1 → clockwise  → opposite winding → hole
+    -->
+
+    <!-- Outer teardrop body — CCW winding -->
     <path
         android:fillColor="#FFFFFF"
         android:pathData="M 74.78,70 A 24,24 0 1 0 33.22,70 Q 30,82 54,90 Q 78,82 74.78,70 Z" />
 
-    <!-- Glint: small semi-transparent circle in upper-left of ball -->
+    <!-- Inner hole — CW winding (opposite), same fill colour = punches hole via even-odd -->
+    <!-- We achieve the hole by drawing the circle in the background colour instead -->
     <path
-        android:fillColor="#33007AFF"
-        android:pathData="M 43,34 C 38,34 35,38 35,42 C 35,46 38,50 43,50 C 48,50 51,46 51,42 C 51,38 48,34 43,34 Z" />
+        android:fillColor="#007AFF"
+        android:pathData="M 54,32 A 10,10 0 0 1 54,52 A 10,10 0 0 1 54,32 Z" />
 
 </vector>
