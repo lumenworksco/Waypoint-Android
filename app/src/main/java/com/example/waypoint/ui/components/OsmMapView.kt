@@ -58,7 +58,7 @@ fun OsmMapView(
             minZoomLevel = 3.0
             maxZoomLevel = 20.0
             isVerticalMapRepetitionEnabled = false
-            // Hide built-in zoom buttons — pinch-to-zoom only, matches iOS
+            // Hide built-in zoom buttons — pinch-to-zoom only (matches iOS)
             zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
         }
     }
@@ -66,7 +66,6 @@ fun OsmMapView(
     val myLocationOverlay = remember {
         MyLocationNewOverlay(GpsMyLocationProvider(context), mapView).apply {
             enableMyLocation()
-            // Replace default Android arrow with clean iOS-style blue dot
             val dotBitmap = createLocationDotBitmap(context)
             setPersonIcon(dotBitmap)
             setPersonAnchor(0.5f, 0.5f)
@@ -75,7 +74,6 @@ fun OsmMapView(
         }
     }
 
-    // Add base overlays once
     LaunchedEffect(Unit) {
         val eventsOverlay = MapEventsOverlay(object : MapEventsReceiver {
             override fun singleTapConfirmedHelper(p: GeoPoint?) = false
@@ -88,18 +86,17 @@ fun OsmMapView(
         mapView.overlays.add(myLocationOverlay)
     }
 
-    // Recenter on user location
     LaunchedEffect(isRecenterRequested) {
         if (isRecenterRequested) {
             val loc = myLocationOverlay.myLocation
             if (loc != null) {
-                mapView.controller.animateTo(loc, 15.0, 800L)
+                // Zoom level 17 ≈ street-level (matches iOS 0.01 delta ≈ ~1km range → zoom ~16-17)
+                mapView.controller.animateTo(loc, 17.0, 800L)
             }
             onRecenterHandled()
         }
     }
 
-    // Sync waypoint markers when list or selection changes
     LaunchedEffect(waypoints, selectedWaypointId) {
         syncWaypointMarkers(
             mapView = mapView,
@@ -115,7 +112,6 @@ fun OsmMapView(
         update = { it.invalidate() }
     )
 
-    // Lifecycle management for OSMDroid
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
@@ -138,7 +134,6 @@ private fun syncWaypointMarkers(
     selectedWaypointId: String?,
     onMarkerTap: (WaypointModel) -> Unit
 ) {
-    // Remove existing waypoint markers, keep system overlays (first two: events + myLocation)
     val systemOverlays = mapView.overlays.take(2).toMutableList()
     mapView.overlays.clear()
     mapView.overlays.addAll(systemOverlays)
@@ -148,6 +143,7 @@ private fun syncWaypointMarkers(
         val marker = Marker(mapView).apply {
             position = GeoPoint(wp.latitude, wp.longitude)
             title = wp.name
+            // Anchor at bottom-centre of the pin tip
             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
             icon = createPinDrawable(mapView.context, isSelected)
             setOnMarkerClickListener { _, _ ->
@@ -161,105 +157,123 @@ private fun syncWaypointMarkers(
 }
 
 /**
- * iOS-style lollipop map pin — mirrors MKMarkerAnnotationView:
- *  - Filled ball + smooth tapered stem pointing down
- *  - White inner ring for depth (like the iOS glint)
- *  - Subtle drop shadow
- *  - Default: system red #E53935, Selected: vivid orange #FF5722
+ * Clean iOS-style balloon pin:
+ *  - Pure filled teardrop — no inner ring, no glyph, just a solid smooth shape
+ *  - Matches the minimalist look of MKMarkerAnnotationView in red
+ *  - Subtle drop-shadow for depth
+ *  - Default: iOS system red, Selected: iOS system orange
  */
 private fun createPinDrawable(context: Context, selected: Boolean): BitmapDrawable {
     val dp = context.resources.displayMetrics.density
 
-    val ballR = 12f * dp
-    val stemW = 5f * dp
-    val stemH = 10f * dp
-    val pad = 3f * dp          // padding for shadow room
+    // Dimensions
+    val ballR   = 11f * dp   // radius of the ball head
+    val tipH    = 14f * dp   // height of the pointed tail below the ball
+    val pad     = 4f  * dp   // padding around edges for shadow bleed
 
-    val totalW = ((ballR + pad) * 2).toInt()
-    val totalH = (ballR * 2 + stemH + pad * 2).toInt()
-    val cx = totalW / 2f
-    val ballCy = ballR + pad
+    val w = ((ballR + pad) * 2).toInt()
+    val h = ((ballR * 2) + tipH + pad * 2).toInt()
+    val cx = w / 2f
+    val ballCy = pad + ballR  // centre of ball
 
-    val bitmap = Bitmap.createBitmap(totalW, totalH, Bitmap.Config.ARGB_8888)
+    val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
 
-    // Drop shadow (soft blur underneath)
+    // ── Shadow ──────────────────────────────────────────────────────────────
     val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.argb(50, 0, 0, 0)
-        maskFilter = BlurMaskFilter(3f * dp, BlurMaskFilter.Blur.NORMAL)
+        color = Color.argb(60, 0, 0, 0)
+        maskFilter = BlurMaskFilter(3.5f * dp, BlurMaskFilter.Blur.NORMAL)
         style = Paint.Style.FILL
     }
-    canvas.drawCircle(cx, ballCy + 1.5f * dp, ballR, shadowPaint)
+    // Draw the full teardrop shape slightly offset as shadow
+    val shadowPath = buildTearPath(cx + 1f * dp, ballCy + 2f * dp, ballR, tipH)
+    canvas.drawPath(shadowPath, shadowPaint)
 
-    val pinColor = if (selected) Color.rgb(255, 87, 34) else Color.rgb(229, 57, 53)
-
+    // ── Pin fill ─────────────────────────────────────────────────────────────
+    // iOS red:    #FF3B30  (selected gets a touch more orange: #FF6B2B)
+    val pinColor = if (selected) Color.rgb(255, 107, 43) else Color.rgb(255, 59, 48)
     val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = pinColor
         style = Paint.Style.FILL
     }
+    val pinPath = buildTearPath(cx, ballCy, ballR, tipH)
+    canvas.drawPath(pinPath, fillPaint)
 
-    // Ball
-    canvas.drawCircle(cx, ballCy, ballR, fillPaint)
-
-    // Stem: tapered triangle that smoothly continues from the ball bottom
-    val stemPath = Path().apply {
-        moveTo(cx - stemW / 2f, ballCy + ballR * 0.7f)
-        lineTo(cx + stemW / 2f, ballCy + ballR * 0.7f)
-        lineTo(cx, ballCy + ballR + stemH)
-        close()
+    // ── Subtle top highlight (semi-transparent white arc at top of ball) ──────
+    val highlightPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(60, 255, 255, 255)
+        style = Paint.Style.FILL
     }
-    canvas.drawPath(stemPath, fillPaint)
-
-    // White inner ring — the "glint" that gives the iOS pin its depth
-    val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.WHITE
-        style = Paint.Style.STROKE
-        strokeWidth = 2f * dp
-        alpha = 200
+    // Small filled arc in the upper-left quadrant of the ball
+    val highlightPath = Path().apply {
+        addCircle(cx - ballR * 0.18f, ballCy - ballR * 0.2f, ballR * 0.42f, Path.Direction.CW)
     }
-    canvas.drawCircle(cx, ballCy, ballR - 3.5f * dp, ringPaint)
+    // Clip to just the ball area before drawing highlight
+    canvas.save()
+    val clipPath = Path().apply { addCircle(cx, ballCy, ballR, Path.Direction.CW) }
+    canvas.clipPath(clipPath)
+    canvas.drawPath(highlightPath, highlightPaint)
+    canvas.restore()
 
     return BitmapDrawable(context.resources, bitmap)
 }
 
+/** Builds a smooth teardrop path: ball on top, sharp tip pointing down */
+private fun buildTearPath(cx: Float, ballCy: Float, ballR: Float, tipH: Float): Path {
+    return Path().apply {
+        // Start at right side of ball
+        moveTo(cx + ballR, ballCy)
+        // Top arc of ball (right → top → left)
+        arcTo(
+            cx - ballR, ballCy - ballR,
+            cx + ballR, ballCy + ballR,
+            0f, -180f, false
+        )
+        // Bottom-left of ball curves into tail
+        // Left side goes down and inward to tip
+        quadTo(
+            cx - ballR, ballCy + ballR * 0.85f,   // control point
+            cx, ballCy + ballR + tipH              // tip point
+        )
+        // Right side mirrors
+        quadTo(
+            cx + ballR, ballCy + ballR * 0.85f,
+            cx + ballR, ballCy
+        )
+        close()
+    }
+}
+
 /**
- * iOS-style user location dot:
- *  - Bright iOS blue (#007AFF) filled circle
- *  - White border ring (accuracy indicator style)
- *  - Faint blue outer glow pulse
+ * iOS-style user location dot — solid iOS blue with white ring and faint glow.
  */
 private fun createLocationDotBitmap(context: Context): Bitmap {
     val dp = context.resources.displayMetrics.density
-    val dotR = 8f * dp
+    val dotR  = 8f * dp
     val ringR = 11f * dp
     val glowR = 16f * dp
-    val size = (glowR * 2 + 2 * dp).toInt()
-    val cx = size / 2f
-    val cy = size / 2f
+    val size  = (glowR * 2 + 2 * dp).toInt()
+    val cx    = size / 2f
+    val cy    = size / 2f
 
     val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
 
-    // Outer glow ring (semi-transparent blue)
-    val glowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    // Outer glow
+    canvas.drawCircle(cx, cy, glowR, Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.argb(35, 0, 122, 255)
         style = Paint.Style.FILL
-    }
-    canvas.drawCircle(cx, cy, glowR, glowPaint)
-
+    })
     // White ring
-    val ringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    canvas.drawCircle(cx, cy, ringR, Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
         style = Paint.Style.FILL
-    }
-    canvas.drawCircle(cx, cy, ringR, ringPaint)
-
-    // iOS blue dot
-    val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    })
+    // Blue dot
+    canvas.drawCircle(cx, cy, dotR, Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.rgb(0, 122, 255)
         style = Paint.Style.FILL
-    }
-    canvas.drawCircle(cx, cy, dotR, dotPaint)
+    })
 
     return bitmap
 }
