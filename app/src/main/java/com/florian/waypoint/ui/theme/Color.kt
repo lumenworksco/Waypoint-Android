@@ -1,4 +1,4 @@
-package com.example.waypoint.ui.theme
+package com.florian.waypoint.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

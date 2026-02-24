@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,15 +7,21 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+val localProps = Properties()
+val localPropsFile = rootProject.file("local.properties")
+if (localPropsFile.exists()) {
+    localPropsFile.inputStream().use { localProps.load(it) }
+}
+
 android {
-    namespace = "com.example.waypoint"
+    namespace = "com.florian.waypoint"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.waypoint"
+        applicationId = "com.florian.waypoint"
         minSdk = 31
         targetSdk = 35
-        versionCode = 1
+        versionCode = 2
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -22,13 +30,24 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = rootProject.file("waypoint-release.jks")
+            storePassword = localProps["KEYSTORE_PASSWORD"] as String?
+            keyAlias = "waypoint"
+            keyPassword = localProps["KEY_PASSWORD"] as String?
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 

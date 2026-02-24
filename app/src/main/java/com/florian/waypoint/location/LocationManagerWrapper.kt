@@ -1,4 +1,4 @@
-package com.example.waypoint.location
+package com.florian.waypoint.location
 
 import android.annotation.SuppressLint
 import android.content.Context

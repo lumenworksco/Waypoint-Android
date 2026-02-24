@@ -1,4 +1,4 @@
-package com.example.waypoint.ui.screen
+package com.florian.waypoint.ui.screen
 
 import android.Manifest
 import androidx.compose.animation.AnimatedVisibility
@@ -23,13 +23,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.waypoint.ui.components.AddHintCapsule
-import com.example.waypoint.ui.components.MapHeader
-import com.example.waypoint.ui.components.OsmMapView
-import com.example.waypoint.ui.components.RecenterButton
-import com.example.waypoint.ui.components.WaypointDetailCard
-import com.example.waypoint.util.HapticUtil
-import com.example.waypoint.viewmodel.WaypointViewModel
+import com.florian.waypoint.ui.components.AddHintCapsule
+import com.florian.waypoint.ui.components.MapHeader
+import com.florian.waypoint.ui.components.OsmMapView
+import com.florian.waypoint.ui.components.RecenterButton
+import com.florian.waypoint.ui.components.WaypointDetailCard
+import com.florian.waypoint.util.HapticUtil
+import com.florian.waypoint.viewmodel.WaypointViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 

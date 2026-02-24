@@ -1,4 +1,4 @@
-package com.example.waypoint.util
+package com.florian.waypoint.util
 
 import android.location.Location
 

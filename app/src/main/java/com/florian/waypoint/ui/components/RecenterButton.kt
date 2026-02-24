@@ -1,4 +1,4 @@
-package com.example.waypoint.ui.components
+package com.florian.waypoint.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

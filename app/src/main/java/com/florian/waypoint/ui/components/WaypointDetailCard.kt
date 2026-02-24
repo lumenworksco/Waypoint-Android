@@ -1,4 +1,4 @@
-package com.example.waypoint.ui.components
+package com.florian.waypoint.ui.components
 
 import android.location.Location
 import androidx.compose.foundation.background
@@ -43,8 +43,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.waypoint.data.model.WaypointModel
-import com.example.waypoint.util.DistanceUtil
+import com.florian.waypoint.data.model.WaypointModel
+import com.florian.waypoint.util.DistanceUtil
 
 /**
  * iOS-style inline waypoint detail card.

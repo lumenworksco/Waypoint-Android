@@ -1,4 +1,4 @@
-package com.example.waypoint
+package com.florian.waypoint
 
 import android.app.Application
 import org.osmdroid.config.Configuration

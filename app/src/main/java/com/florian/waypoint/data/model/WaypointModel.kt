@@ -1,4 +1,4 @@
-package com.example.waypoint.data.model
+package com.florian.waypoint.data.model
 
 import kotlinx.serialization.Serializable
 import java.util.UUID

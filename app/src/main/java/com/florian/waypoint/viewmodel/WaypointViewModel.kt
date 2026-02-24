@@ -1,13 +1,13 @@
-package com.example.waypoint.viewmodel
+package com.florian.waypoint.viewmodel
 
 import android.app.Application
 import android.location.Location
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.waypoint.data.model.WaypointModel
-import com.example.waypoint.data.repository.WaypointRepository
-import com.example.waypoint.location.LocationManagerWrapper
-import com.example.waypoint.util.ValidationUtil
+import com.florian.waypoint.data.model.WaypointModel
+import com.florian.waypoint.data.repository.WaypointRepository
+import com.florian.waypoint.location.LocationManagerWrapper
+import com.florian.waypoint.util.ValidationUtil
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

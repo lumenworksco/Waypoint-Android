@@ -1,4 +1,4 @@
-package com.example.waypoint.ui.components
+package com.florian.waypoint.ui.components
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -19,7 +19,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.example.waypoint.data.model.WaypointModel
+import com.florian.waypoint.data.model.WaypointModel
 import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint

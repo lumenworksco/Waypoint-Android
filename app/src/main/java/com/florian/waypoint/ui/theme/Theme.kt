@@ -1,4 +1,4 @@
-package com.example.waypoint.ui.theme
+package com.florian.waypoint.ui.theme
 
 import android.app.Activity
 import androidx.compose.material3.MaterialTheme
